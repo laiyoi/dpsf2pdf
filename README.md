@@ -1,7 +1,7 @@
 # dpsf2pdf
 ## 简介
 
-dpsf2pdf 是一个将金印云DPS的`.dpsf`文件转换为`PDF`文件的命令行工具。
+dpsf2pdf 是一个将金印云DPS的`.dpsf`文件转换为`PDF`文件的项目。
 
 ## 目的
 
