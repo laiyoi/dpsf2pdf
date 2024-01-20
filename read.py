@@ -47,6 +47,7 @@ def read_texts(document_element):
             for e in raw_text:
                 if e.tag == 'ITEXT':
                     text = e.get('CH', '')
+                    size = float(e.get('SIZE', '12'))
                 elif e.tag == 'para':
                     align = int(e.get('ALIGN', '3'))
                     idt =  float(e.get('FIRST', '0'))
@@ -54,7 +55,8 @@ def read_texts(document_element):
                 elif e.tag == 'trail':
                     align = int(e.get('ALIGN', '3'))
                     idt =  float(e.get('FIRST', '0'))
-                    texts.append({'text': text, 'align': align, 'idt': idt})
+                    texts.append({'text': text, 'size': size,
+                                  'align': align, 'idt': idt})
             
             text_box['text'] = texts
         else:
