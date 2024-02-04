@@ -3,7 +3,7 @@ import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
 import json
 
-dpsf_path = '期刊杂志-大16开骑马钉-文学杂志期刊模板240115-1352.dpsf'
+dpsf_path = '图片.dpsf'
 conn = sqlite3.connect(dpsf_path)
 # 创建游标
 cursor = conn.cursor()
@@ -12,6 +12,19 @@ cursor.execute('SELECT data FROM root WHERE name = "doc"')
 xml_data = cursor.fetchall()[0][0]
 root = ET.fromstring(xml_data)
 document_element = root.find('DOCUMENT')
+
+def get_xywh(a: Element):
+    b = {
+        'x': float(a.get('XPOS')),
+        'y': float(a.get('YPOS')),
+        'w': float(a.get('WIDTH')),
+        'h': float(a.get('HEIGHT'))
+        }
+    return b
+
+def get_vector_path(path_name):
+    cursor.execute('SELECT data FROM vector WHERE name = ?', (path_name,))
+    return cursor.fetchall()[0][0].decode('utf-8')
 
 def read_pages(document_element):
     raw_pages = document_element.findall('PAGE')
@@ -23,11 +36,49 @@ def read_pages(document_element):
         'w': float(pg.get('PAGEWIDTH')),
         'h': float(pg.get('PAGEHEIGHT'))
         }
-        num = pg.get('NUM')
+        num = int(pg.get('NUM'))
         pages[num] = t
 
     return pages
 
+def read_vectors(document_element):
+    raw_vectors = document_element.findall('PAGEOBJECT[@PTYPE="12"]')
+    vectors = []
+    for vec in raw_vectors:
+        full = {
+            **get_xywh(vec),
+            'pg': int(vec.get('OwnPage')),
+            'path': vec.get('path_md5')
+        }
+        parts = []
+        for raw_part in vec.findall('PAGEOBJECT'):
+            part = {
+                **get_xywh(raw_part),
+                'path': get_vector_path(raw_part.get('path_md5'))
+            }
+            colors = []
+            for e in raw_part:
+                color = e.get('NAME')
+                colors.append(color)
+            part['colors'] = colors
+            parts.append(part)
+        full['parts'] = parts
+        vectors.append(full)
+    return vectors
+
+
+def read_imgs_info(document_element):
+    raw_imgs = document_element.findall('PAGEOBJECT[@PTYPE="2"][@PFILE]')
+    imgs = []
+    for raw_img in raw_imgs:
+        img = {
+            **get_xywh(raw_img),
+            'pg': int(raw_img.get('OwnPage')),
+            'path': raw_img.get('PFILE'),
+        }
+        imgs.append(img)
+    return imgs
+    
 
 def read_texts(document_element):
     raw_text_box = document_element.findall('PAGEOBJECT[@PTYPE="4"]')
@@ -35,10 +86,7 @@ def read_texts(document_element):
     text_boxs = []
     for tb in raw_text_box:
         text_box = {
-            'x': float(tb.get('XPOS')),
-            'y': float(tb.get('YPOS')),
-            'w': float(tb.get('WIDTH')),
-            'h': float(tb.get('HEIGHT')),
+            **get_xywh(tb),
             'pg': int(tb.get('OwnPage')),
         }
         
@@ -48,16 +96,11 @@ def read_texts(document_element):
                 if e.tag == 'ITEXT':
                     text = e.get('CH', '')
                     size = float(e.get('SIZE', '12'))
-                elif e.tag == 'para':
-                    align = int(e.get('ALIGN', '3'))
-                    idt =  float(e.get('FIRST', '0'))
-                    texts.append({'text': text, 'align': align, 'idt': idt})
-                elif e.tag == 'trail':
+                elif e.tag == ('para' or 'trail'):
                     align = int(e.get('ALIGN', '3'))
                     idt =  float(e.get('FIRST', '0'))
                     texts.append({'text': text, 'size': size,
                                   'align': align, 'idt': idt})
-            
             text_box['text'] = texts
         else:
             continue
@@ -71,6 +114,8 @@ def read_texts(document_element):
 if __name__ == '__main__':
     tbs = read_texts(document_element)
     pgs = read_pages(document_element)
+    imgs = read_imgs_info(document_element)
+    vectors = read_vectors(document_element)
     with open('texts.json', 'w', encoding='utf-8') as f:
         try:
             json.dump(tbs, f, ensure_ascii=False, indent=4)
@@ -78,3 +123,7 @@ if __name__ == '__main__':
             f.write(str(tbs))
     with open('pages.json', 'w', encoding='utf-8') as f:
         json.dump(pgs, f, ensure_ascii=False, indent=4)
+    with open('images.json', 'w', encoding='utf-8') as f:
+        json.dump(imgs, f, ensure_ascii=False, indent=4)
+    with open('vectors.json', 'w', encoding='utf-8') as f:
+        json.dump(vectors, f, ensure_ascii=False, indent=4)
