@@ -14,11 +14,10 @@ def hex_cmyk_to_hex_rgb(hex_cmyk: str):
         return int(value, 16) / 255.0
 
     # 提取透明度和 CMYK 分量
-    alpha = hex_to_float(hex_cmyk[:2])
-    c = hex_to_float(hex_cmyk[2:4])
-    m = hex_to_float(hex_cmyk[4:6])
-    y = hex_to_float(hex_cmyk[6:8])
-    k = hex_to_float(hex_cmyk[8:])
+    c = hex_to_float(hex_cmyk[:2])
+    m = hex_to_float(hex_cmyk[2:4])
+    y = hex_to_float(hex_cmyk[4:6])
+    k = hex_to_float(hex_cmyk[6:])
 
     # 转换为 RGB
     r = int(255 * (1 - c) * (1 - k))
@@ -28,3 +27,7 @@ def hex_cmyk_to_hex_rgb(hex_cmyk: str):
     # 转换为十六进制 RGB
     hex_rgb = "#{:02X}{:02X}{:02X}".format(r, g, b)
     return hex_rgb
+
+def get_vector_path(path_name):
+    cursor.execute('SELECT data FROM vector WHERE name = ?', (path_name,))
+    return cursor.fetchall()[0][0].decode('utf-8')

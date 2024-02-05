@@ -2,9 +2,9 @@ import sqlite3
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
 import json
-from utils import get_xywh, hex_cmyk_to_hex_rgb
+from utils import get_xywh, hex_cmyk_to_hex_rgb, get_vector_path
 
-dpsf_path = '实战.dpsf'
+dpsf_path = '无图.dpsf'
 conn = sqlite3.connect(dpsf_path)
 # 创建游标
 cursor = conn.cursor()
@@ -12,11 +12,7 @@ cursor = conn.cursor()
 cursor.execute('SELECT data FROM root WHERE name = "doc"')
 xml_data = cursor.fetchall()[0][0]
 root = ET.fromstring(xml_data)
-document_element = root.find('DOCUMENT')
-
-def get_vector_path(path_name):
-    cursor.execute('SELECT data FROM vector WHERE name = ?', (path_name,))
-    return cursor.fetchall()[0][0].decode('utf-8')
+#document_element = root.find('DOCUMENT')
 
 def read_pages(document_element):
     raw_pages = document_element.findall('PAGE')
@@ -96,7 +92,7 @@ def read_texts(document_element):
                     else:
                         color = '000000'
                     feat = e.get('FEATURES', '')
-                elif e.tag == ('para' or 'trail'):
+                elif e.tag == "para" or (e.tag == "trail"):
                     align = int(e.get('ALIGN', '3'))
                     idt =  float(e.get('FIRST', '0'))
                     texts.append({'text': text, 'size': size, 'color': color,
@@ -112,6 +108,7 @@ def read_texts(document_element):
     return text_boxs
 
 if __name__ == '__main__':
+    document_element = ET.parse('无图.xml').find('DOCUMENT')
     tbs = read_texts(document_element)
     pgs = read_pages(document_element)
     imgs = read_imgs_info(document_element)
