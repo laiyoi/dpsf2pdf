@@ -12,11 +12,11 @@ cursor = conn.cursor()
 cursor.execute('SELECT data FROM root WHERE name = "doc"')
 xml_data = cursor.fetchall()[0][0]
 root = ET.fromstring(xml_data)
-#document_element = root.find('DOCUMENT')
+document_element = root.find('DOCUMENT')
 
 def read_pages(document_element):
     raw_pages = document_element.findall('PAGE')
-    pages = {}
+    pages = []
     for pg in raw_pages:
         t = {
         'x': float(pg.get('PAGEXPOS')),
@@ -25,7 +25,7 @@ def read_pages(document_element):
         'h': float(pg.get('PAGEHEIGHT'))
         }
         num = int(pg.get('NUM'))
-        pages[num] = t
+        pages.append(t)
 
     return pages
 
@@ -79,36 +79,37 @@ def read_texts(document_element):
         }
         
         if raw_text := tb.find('StoryText'):
+            txts = []
             texts = []
             for e in raw_text:
                 if e.tag == 'ITEXT':
                     text = e.get('CH', '')
                     size = float(e.get('FONTSIZE', '12'))
-                    color = e.get('FCOLOR', '000000')
-                    if color[0] == '#':
-                        color = color[1:]
-                    elif color[0] == '@':
-                        color = hex_cmyk_to_hex_rgb(color[1:])
+                    fcolor = e.get('FCOLOR', '000000')
+                    font = e.get('FONT', 'Simsun')
+                    if fcolor[0] == '#':
+                        fcolor = fcolor[1:]
+                    elif fcolor[0] == '@':
+                        fcolor = hex_cmyk_to_hex_rgb(fcolor[1:])
                     else:
-                        color = '000000'
+                        fcolor = '000000'
                     feat = e.get('FEATURES', '')
+                    texts.append({'text': text,'size': size,
+                                  'font': font,'fcolor': fcolor, 'feat': feat})
                 elif e.tag == "para" or (e.tag == "trail"):
                     align = int(e.get('ALIGN', '3'))
                     idt =  float(e.get('FIRST', '0'))
-                    texts.append({'text': text, 'size': size, 'color': color,
-                                'feat': feat, 'align': align, 'idt': idt})
-            text_box['text'] = texts
+                    txts.append({'text': texts, 'align': align, 'idt': idt})
+                    texts = []
+            text_box['texts'] = txts
         else:
             continue
-        a = any(isinstance(v, Element) for v in text_box.values())
-        if a:
-            raise Exception(f"{text_box} is not a valid text box")
         text_boxs.append(text_box)
 
     return text_boxs
 
 if __name__ == '__main__':
-    document_element = ET.parse('无图.xml').find('DOCUMENT')
+    #document_element = ET.parse('无图.xml').find('DOCUMENT')
     tbs = read_texts(document_element)
     pgs = read_pages(document_element)
     imgs = read_imgs_info(document_element)

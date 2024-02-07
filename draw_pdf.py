@@ -1,5 +1,7 @@
-from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.platypus import Paragraph
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+import json
 
 '''
 <ITEXT CH="11登的"/>
@@ -17,12 +19,45 @@ from reportlab.pdfgen import canvas
 <ITEXT CH="分散对齐"/>
 <trail ALIGN="4"/>
 '''
-# 第一页使用 letter 尺寸
-pdf_filename = 
 
-def cover(pdf_filename, pages, txt_boxs):
-    pdf_canvas = canvas.Canvas(pdf_filename, pagesize=(pages[0]['w'], pages[0]['h']))
-    for tb in txt_boxs:
-        pdf_canvas.rect(tb['x'], tb['y'], tb['w'], tb['h'])
-    pdf_canvas.drawString(pages[0]['w'], pages[0]['h'], "Page 1 - Letter Size Content")
-    pdf_canvas.showPage()
+class PDF_Canvas(canvas.Canvas):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def cover(self, pages, txt_boxs):
+        self.setPageSize((pages[0]['w'], pages[0]['h']))
+        for tb in txt_boxs:
+            if tb['pg'] != 0: continue
+            self.draw_multiline_text(tb['x'], tb['y'], tb['texts'])
+        self.drawString(100, 100, "Page 1 - Letter Size Content")
+        self.showPage()
+
+    def draw_multiline_text(self, x, y, lines):
+        current_y = y
+        for line in lines:
+            current_x = x
+            for part in line['text']:
+                fs = self.get_formatted_string(part)
+                fs.drawOn(self, current_x, current_y)
+                current_x += fs.width
+            current_y -= max(fs.height for fs in [self.get_formatted_string(part) for part in line['text']])
+
+    def get_formatted_string(self, part):
+        text = part['text']
+        style = self.get_paragraph_style(part)
+        return Paragraph(text, style=style)
+
+    def get_paragraph_style(self, part):
+        style = ParagraphStyle("custom_style", fontName=part['font'], fontSize=part['size'], textColor=part['fcolor'])
+        if 'inherit bold' in part['feat']:
+            style.bold = True
+        return style
+
+if __name__ == '__main__':
+    with open('pages.json', 'r', encoding='utf-8') as f:
+        pages = json.load(f)
+    with open('texts.json', 'r', encoding='utf-8') as f:
+        texts = json.load(f)
+    pdf = PDF_Canvas('output.pdf')
+    pdf.cover(pages, texts)
+    pdf.save()
